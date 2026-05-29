@@ -1,8 +1,34 @@
 import tkinter as tk
 from tkinter import ttk, messagebox, simpledialog
+import csv, os
 
-incomes  = []   
-expenses = []   
+DB = os.path.join(os.path.dirname(os.path.abspath(__file__)), "database.csv")
+
+def save_data():
+    with open(DB, "w", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow(["typ", "namn", "belopp"])
+        for item in incomes:
+            writer.writerow(["inkomst", item["name"], item["amount"]])
+        for item in expenses:
+            writer.writerow(["utkomst", item["name"], item["amount"]])
+
+def load_data():
+    if not os.path.exists(DB):
+        return
+    try:
+        with open(DB, "r", encoding="utf-8") as f:
+            for row in csv.DictReader(f):
+                entry = {"name": row["namn"], "amount": float(row["belopp"])}
+                if row["typ"] == "inkomst":
+                    incomes.append(entry)
+                elif row["typ"] == "utkomst":
+                    expenses.append(entry)
+    except (KeyError, ValueError):
+        pass
+
+incomes  = []
+expenses = []
 
 def total(lst):
     return sum(item["amount"] for item in lst)
@@ -37,6 +63,7 @@ def add_item(lst, tree):
         messagebox.showerror("Fel", "Ogiltigt belopp.")
         return
     lst.append({"name": name, "amount": amount})
+    save_data()
     refresh()
 
 def remove_item(lst, tree):
@@ -46,11 +73,17 @@ def remove_item(lst, tree):
         return
     idx = tree.index(sel[0])
     lst.pop(idx)
+    save_data()
     refresh()
+
+def on_exit():
+    save_data()
+    root.destroy()
 
 root = tk.Tk()
 root.title("Budgethanterare")
 root.resizable(False, False)
+root.protocol("WM_DELETE_WINDOW", on_exit)
 
 BG      = "#1a1a2e"
 CARD    = "#16213e"
@@ -121,10 +154,11 @@ def make_panel(parent, title, lst, side):
 income_tree  = make_panel(panels, "💰  Inkomster", incomes,  "left")
 expense_tree = make_panel(panels, "💸  Utkomster", expenses, "right")
 
-tk.Button(root, text="Avsluta", command=root.quit,
+tk.Button(root, text="Avsluta", command=on_exit,
     bg=ACCENT, fg=TEXT, font=("Segoe UI", 10, "bold"),
     relief="flat", padx=20, pady=6, cursor="hand2"
 ).pack(pady=(0, 20))
 
+load_data()
 refresh()
 root.mainloop()
